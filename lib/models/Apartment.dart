@@ -1,65 +1,135 @@
 class Apartment {
+  final int id;
   final String name;
-  final String description;
-  final double price;
-  final String location;
-  final String apartmentType;
-  final List<String> imageUrls;  // List of image URLs for apartment images
-  final String imageUrl;  // Single image URL for the main image
-  final int floor;
-  final int numberOfRooms;
-  final double area;
-  final bool hasParking;
-  final bool hasSecurityCamera;
+  final String? houseType;
+  final int? numberOfBedroom;
+  final int? numberOfBathroom;
+  final bool? kitchenInside;
+  final bool? kitchenOutside;
+  final bool? hasWifi;
+  final bool? hasParking;
+  final bool? hasSecurity;
+  final int? numberOfFloor;
+  final String? address;
+  final String coordinate;
+  final String? annexes;
+  final String? description;
+  final String? status;
+  final bool? swimmingPool;
+  final double? pricePerNight;
+  final double? pricePerMonth;
+  final List<Photo> photos;
+  final String? createdAt;
+  final String? updatedAt;
 
   Apartment({
+    required this.id,
     required this.name,
-    required this.description,
-    required this.price,
-    required this.location,
-    required this.apartmentType,
-    required this.imageUrls,  // Initialize imageUrls list
-    required this.imageUrl,   // Initialize imageUrl for the main image
-    required this.floor,
-    required this.numberOfRooms,
-    required this.area,
+    required this.houseType,
+    required this.numberOfBedroom,
+    required this.numberOfBathroom,
+    required this.kitchenInside,
+    required this.kitchenOutside,
+    required this.hasWifi,
     required this.hasParking,
-    required this.hasSecurityCamera,
+    required this.hasSecurity,
+    required this.numberOfFloor,
+    required this.address,
+    required this.coordinate,
+    this.annexes,
+    this.description,
+    required this.status,
+    required this.swimmingPool,
+    this.pricePerNight,
+    this.pricePerMonth,
+    required this.photos,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
-  // Convert JSON to Apartment object
   factory Apartment.fromJson(Map<String, dynamic> json) {
     return Apartment(
+      id: json['id'],
       name: json['name'],
+      houseType: json['house_type'],
+      numberOfBedroom: json['number_of_bedroom'],
+      numberOfBathroom: json['number_of_bathroom'],
+      kitchenInside: json['kitchen_inside'],
+      kitchenOutside: json['kitchen_outside'],
+      hasWifi: json['has_wifi'],
+      hasParking: json['has_parking'],
+      hasSecurity: json['has_security'],
+      numberOfFloor: json['number_of_floor'],
+      address: json['address'],
+      coordinate: json['coordinate'],
+      annexes: json['annexes'],
       description: json['description'],
-      price: json['price'],
-      location: json['location'],
-      apartmentType: json['apartmentType'],
-      imageUrl: json['imageUrl'],
-      imageUrls: List<String>.from(json['imageUrls']),  // Convert to list of images
-      floor: json['floor'],
-      numberOfRooms: json['numberOfRooms'],
-      area: json['area'],
-      hasParking: json['hasParking'],
-      hasSecurityCamera: json['hasSecurityCamera'],
+      status: json['status'],
+      swimmingPool: json['swimming_pool'],
+      pricePerNight: double.tryParse(json['price_per_night'].toString()),
+      pricePerMonth: double.tryParse(json['price_per_month'].toString()),
+      photos: (json['photos'] as List<dynamic>)
+          .map((p) => Photo.fromJson(p as Map<String, dynamic>))
+          .toList(),
+      createdAt: json['created_at'],
+      updatedAt: json['updated_at'],
     );
   }
+}
 
-  // Convert Apartment object to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'description': description,
-      'price': price,
-      'location': location,
-      'apartmentType': apartmentType,
-      'imageUrl': imageUrl,
-      'imageUrls': imageUrls,
-      'floor': floor,
-      'numberOfRooms': numberOfRooms,
-      'area': area,
-      'hasParking': hasParking,
-      'hasSecurityCamera': hasSecurityCamera,
-    };
+
+class Photo {
+  final int id;
+  final String name;
+  final String url;
+  final String? status;
+  final String? deletedOn;
+  final User? updatedBy;
+  final User? deletedBy;
+
+  Photo({
+    required this.id,
+    required this.name,
+    required this.url,
+    this.status,
+    this.deletedOn,
+    this.updatedBy,
+    this.deletedBy,
+  });
+
+  factory Photo.fromJson(Map<String, dynamic> json) {
+    return Photo(
+      id: json['id'],
+      name: json['name'],
+      url: json['url'],
+      status: json['status'],
+      deletedOn: json['deleted_on'],
+      updatedBy:
+      json['updated_by'] != null ? User.fromJson(json['updated_by']) : null,
+      deletedBy:
+      json['deleted_by'] != null ? User.fromJson(json['deleted_by']) : null,
+    );
   }
 }
+
+class User {
+  final int id;
+  final String name;
+  final String email;
+
+  User({
+    required this.id,
+    required this.name,
+    required this.email,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'],
+      name: json['name'],
+      email: json['email'],
+    );
+  }
+}
+
+

@@ -1,247 +1,393 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:visit_1000_hills/services/ApartmentService.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'ApartmentDetailsView.dart';
-// Ensure this import exists
+import '../models/Apartment.dart';
+import 'ApartmentBooking.dart';
 
-class ApartmentListView extends StatefulWidget {
-  const ApartmentListView({super.key});
+class ApartmentListingPage extends StatefulWidget {
+  const ApartmentListingPage({super.key});
 
   @override
-  ApartmentListViewState createState() => ApartmentListViewState();
+  State<ApartmentListingPage> createState() => _ApartmentListingPageState();
 }
 
-class ApartmentListViewState extends State<ApartmentListView> {
-  String? selectedApartmentType;
-  String? selectedLocation;
-  double minPrice = 0;
-  double maxPrice = 1000;
-  String searchQuery = '';
+class _ApartmentListingPageState extends State<ApartmentListingPage> {
+  List<Apartment> apartments = [];
+  List<Apartment> filteredApartments = [];
+  bool isLoading = true;
+
+  int page = 1;
+  int lastPage = 1;
+
+  String searchTerm = '';
+  String bedroomFilter = '';
+  String poolFilter = '';
+
+  final String apiUrl = '${dotenv.env['API_URL'] ?? ''}/apartments';
+  final String storageUrl = dotenv.env['BASE_URL_STORAGE'] ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    fetchApartments(page);
+  }
+
+  Future<void> fetchApartments(int page) async {
+    setState(() => isLoading = true);
+    try {
+      final response = await http.get(Uri.parse('$apiUrl?page=$page'));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        final List<dynamic> dataList = jsonResponse['data'] ?? [];
+
+        final List<Apartment> fetchedApartments =
+        dataList.map((json) => Apartment.fromJson(json)).toList();
+
+        setState(() {
+          apartments = fetchedApartments;
+          filteredApartments = fetchedApartments;
+          this.page = jsonResponse['current_page'] ?? 1;
+          lastPage = jsonResponse['last_page'] ?? 1;
+        });
+      } else {
+        throw Exception('Failed to load apartments: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('API Error: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  void applyFilters() {
+    List<Apartment> filtered = apartments;
+
+    if (searchTerm.isNotEmpty) {
+      filtered = filtered
+          .where((apt) =>
+          apt.name.toLowerCase().contains(searchTerm.toLowerCase()))
+          .toList();
+    }
+
+    if (bedroomFilter.isNotEmpty) {
+      final intBed = int.tryParse(bedroomFilter);
+      if (intBed != null) {
+        filtered =
+            filtered.where((apt) => apt.numberOfBedroom == intBed).toList();
+      }
+    }
+
+    if (poolFilter.isNotEmpty) {
+      final poolBool = poolFilter == 'Yes';
+      filtered =
+          filtered.where((apt) => apt.swimmingPool == poolBool).toList();
+    }
+
+    setState(() {
+      filteredApartments = filtered;
+    });
+  }
+
+  void handlePrev() {
+    if (page > 1) fetchApartments(page - 1);
+  }
+
+  void handleNext() {
+    if (page < lastPage) fetchApartments(page + 1);
+  }
+
+  void showApartmentDetails(BuildContext context, Apartment apartment) {
+    final PageController _photoPageController = PageController();
+    int _selectedPhotoIndex = 0;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.85,
+              builder: (context, scrollController) {
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 5,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[400],
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        apartment.name,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      if (apartment.photos.isNotEmpty) ...[
+                        SizedBox(
+                          height: 200,
+                          child: PageView.builder(
+                            controller: _photoPageController,
+                            onPageChanged: (index) {
+                              setState(() => _selectedPhotoIndex = index);
+                            },
+                            itemCount: apartment.photos.length,
+                            itemBuilder: (context, index) {
+                              final photo = apartment.photos[index];
+                              return Padding(
+                                padding:
+                                const EdgeInsets.symmetric(horizontal: 4.0),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    '$storageUrl/${photo.url}',
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 60,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: apartment.photos.length,
+                            itemBuilder: (context, index) {
+                              final photo = apartment.photos[index];
+                              return GestureDetector(
+                                onTap: () {
+                                  _photoPageController.jumpToPage(index);
+                                  setState(() => _selectedPhotoIndex = index);
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: _selectedPhotoIndex == index
+                                          ? Colors.indigo
+                                          : Colors.grey,
+                                      width: 2,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Image.network(
+                                      '$storageUrl/${photo.url}',
+                                      width: 60,
+                                      height: 60,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      Text("📍 Address: ${apartment.address}"),
+                      Text("🛏 Bedrooms: ${apartment.numberOfBedroom}"),
+                      Text("🏢 Floors: ${apartment.numberOfFloor}"),
+                      Text("🏊‍♀️ Swimming Pool: "),
+                      Text("📞 Contact:"),
+                      Text("📧 Email: "),
+                      const SizedBox(height: 16),
+                      Text("💵 Price per Night: \$${apartment.pricePerNight?.toStringAsFixed(2) ?? 'N/A'}"),
+                      Text("💰 Price per Month: \$${apartment.pricePerMonth?.toStringAsFixed(2) ?? 'N/A'}"),
+                      const SizedBox(height: 24),
+                      Center(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.book),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => BookApartmentForm(apartment: apartment),
+                              ),
+                            );
+
+                          },
+                          label: const Text('Book Apartment'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            backgroundColor: Colors.indigo,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final apartments =
-        ApartmentService.getApartments().where((apartment) {
-          bool matchesType =
-              selectedApartmentType == null ||
-              apartment.apartmentType == selectedApartmentType;
-          bool matchesLocation =
-              selectedLocation == null ||
-              apartment.location == selectedLocation;
-          bool matchesPrice =
-              apartment.price >= minPrice && apartment.price <= maxPrice;
-          bool matchesSearch =
-              searchQuery.isEmpty ||
-              apartment.name.toLowerCase().contains(searchQuery.toLowerCase());
-          return matchesType &&
-              matchesLocation &&
-              matchesPrice &&
-              matchesSearch;
-        }).toList();
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Apartments'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(160),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-            child: Column(
-              children: [
-                TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      searchQuery = value;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search by apartment name',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
+      appBar: AppBar(title: const Text('Apartment Listings')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+          children: [
+            Card(
+              color: Colors.indigo[600],
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          hintText: 'Type',
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        value: selectedApartmentType,
-                        items:
-                            ['Studio', '1 Bedroom', '2 Bedroom', '3 Bedroom']
-                                .map(
-                                  (type) => DropdownMenuItem(
-                                    value: type,
-                                    child: Text(type),
-                                  ),
-                                )
-                                .toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedApartmentType = value;
-                          });
-                        },
+                    const Text(
+                      'Filter Apartments',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          hintText: 'Location',
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        value: selectedLocation,
-                        items:
-                            ['Downtown', 'Suburbs', 'Countryside']
-                                .map(
-                                  (location) => DropdownMenuItem(
-                                    value: location,
-                                    child: Text(location),
-                                  ),
-                                )
-                                .toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedLocation = value;
-                          });
-                        },
+                    const SizedBox(height: 16),
+                    TextField(
+                      onChanged: (value) {
+                        searchTerm = value;
+                        applyFilters();
+                      },
+                      decoration: const InputDecoration(
+                        labelText: 'Search by Name',
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        bedroomFilter = value;
+                        applyFilters();
+                      },
+                      decoration: const InputDecoration(
+                        labelText: 'Filter by Bedrooms',
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      value: poolFilter.isEmpty ? null : poolFilter,
+                      items: const [
+                        DropdownMenuItem(value: '', child: Text('All')),
+                        DropdownMenuItem(value: 'Yes', child: Text('Has Pool')),
+                        DropdownMenuItem(value: 'No', child: Text('No Pool')),
+                      ],
+                      onChanged: (value) {
+                        poolFilter = value ?? '';
+                        applyFilters();
+                      },
+                      decoration: const InputDecoration(
+                        labelText: 'Swimming Pool',
+                        filled: true,
+                        fillColor: Colors.white,
                       ),
                     ),
                   ],
                 ),
-                RangeSlider(
-                  values: RangeValues(minPrice, maxPrice),
-                  min: 0,
-                  max: 1000,
-                  divisions: 10,
-                  labels: RangeLabels(
-                    '\$${minPrice.round()}',
-                    '\$${maxPrice.round()}',
-                  ),
-                  onChanged: (values) {
-                    setState(() {
-                      minPrice = values.start;
-                      maxPrice = values.end;
-                    });
-                  },
-                ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: filteredApartments.isEmpty
+                  ? const Center(child: Text("No apartments found."))
+                  : GridView.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: MediaQuery.of(context).size.width > 800 ? 3 : 1,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 0.8,
+                ),
+                itemCount: filteredApartments.length,
+                itemBuilder: (context, index) {
+                  final apartment = filteredApartments[index];
+                  final photoUrl = apartment.photos.isNotEmpty
+                      ? '$storageUrl/${apartment.photos[0].url}'
+                      : null;
+
+                  return GestureDetector(
+                    onTap: () => showApartmentDetails(context, apartment),
+                    child: Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              height: 180,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                image: DecorationImage(
+                                  fit: BoxFit.cover,
+                                  image: photoUrl != null
+                                      ? NetworkImage(photoUrl)
+                                      : const AssetImage('assets/placeholder.png')
+                                  as ImageProvider,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              apartment.name,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.indigo,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
-      ),
-      body: ListView.builder(
-        itemCount: apartments.length,
-        itemBuilder: (context, index) {
-          final apartment = apartments[index];
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (context) => ApartmentDetailsView(
-                        apartment: apartment,
-                      ), // `apartment` is of type Apartment
-                ),
-              );
-            },
-            child: Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      height: 120,
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(12),
-                          bottomLeft: Radius.circular(12),
-                        ),
-                        image: DecorationImage(
-                          image: AssetImage(apartment.imageUrl),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            apartment.name,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Location
-                          Text(
-                            apartment.location,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-
-                          // Price per Month
-                          Text(
-                            '\$${apartment.price.toStringAsFixed(2)} / month',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.green,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                    
-
-                          // Apartment Type
-                          Text(
-                            'Apartment Type: ${apartment.apartmentType}',
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                          const SizedBox(height: 8),
-
-                        
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
       ),
     );
   }

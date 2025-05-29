@@ -319,15 +319,32 @@ class _BookNowFormState extends State<BookNowForm> {
         body: jsonEncode(bookingData),
       );
 
-      if (bookingRes.statusCode != 200) throw Exception("Booking failed");
+
+
+      if (bookingRes.statusCode != 201) throw Exception("Booking failed");
 
       setState(() => step = "success");
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Booking Successful!')),
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text("Booking Successful"),
+            content: Text("Your booking was successful! A payment link has been sent to your email."),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close the dialog
+                  Navigator.pop(context); // Optionally pop the booking page
+                },
+                child: Text("OK"),
+              ),
+            ],
+          );
+        },
       );
 
-      Navigator.pop(context);
+
     } catch (err) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Verification or booking failed')),

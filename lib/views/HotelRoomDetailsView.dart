@@ -22,7 +22,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
 
   final String storageUrl = dotenv.env['BASE_URL_STORAGE'] ?? '';
 
-
   @override
   void initState() {
     super.initState();
@@ -78,7 +77,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
         padding: EdgeInsets.all(16),
         child: Column(
           children: [
-            // Image Display
+            // Main Image
             AspectRatio(
               aspectRatio: 16 / 9,
               child: photos.isNotEmpty
@@ -93,7 +92,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 fit: BoxFit.cover,
               ),
             ),
-
             SizedBox(height: 10),
 
             // Thumbnails
@@ -124,7 +122,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                   },
                 ),
               ),
-
             SizedBox(height: 16),
 
             // Room Info
@@ -148,35 +145,32 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 ),
               ),
             ),
-
             SizedBox(height: 16),
 
-            // Booking Form Placeholder
+            // Book Button
             ElevatedButton(
               onPressed: () {
-
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => BookingForm(),
+                    builder: (_) => BookRoomForm(room: room!), // <-- room! ensures it's not null
                   ),
                 );
               },
               child: Text('Book This Room'),
             ),
-
             SizedBox(height: 32),
 
-            // Similar Rooms
+            // Similar Rooms Section
             if (similarRooms.isNotEmpty)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Similar Rooms', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   SizedBox(height: 10),
-                  ...similarRooms.map((room) {
-                    final imgUrl = room['photos'] != null && room['photos'].isNotEmpty
-                        ? '$storageUrl/${room['photos'][0]['path']}'
+                  ...similarRooms.map((similarRoom) {
+                    final imgUrl = similarRoom['photos'] != null && similarRoom['photos'].isNotEmpty
+                        ? '$storageUrl/${similarRoom['photos'][0]['path']}'
                         : null;
 
                     return Card(
@@ -197,22 +191,19 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                           height: 60,
                           fit: BoxFit.cover,
                         ),
-                        title: Text(room['name']),
-                        subtitle: Text('Price: ${room['price']} ${room['currency']}'),
+                        title: Text(similarRoom['name']),
+                        subtitle: Text('Price: ${similarRoom['price']} ${similarRoom['currency']}'),
                         trailing: Icon(Icons.arrow_forward),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => BookingForm(),
+                              builder: (_) => BookRoomForm(room: similarRoom),
                             ),
                           );
-
-
                         },
                       ),
                     );
-
                   }).toList(),
                 ],
               ),

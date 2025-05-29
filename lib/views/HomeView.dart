@@ -120,7 +120,7 @@ class _HomeViewState extends State<HomeView> {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => HotelRoomListView()));
                   }, theme),
                   choiceCard(Icons.apartment, 'Apartments', () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ApartmentListView()));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ApartmentListingPage()));
                   }, theme),
                 ],
               ),
@@ -193,7 +193,7 @@ class _HomeViewState extends State<HomeView> {
     icon: Icons.apartment,
     theme: theme,
     onTap: () {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => ApartmentListView()));
+      Navigator.push(context, MaterialPageRoute(builder: (_) => ApartmentListingPage()));
       // You can add apartment navigation here
     },
   ),

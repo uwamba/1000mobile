@@ -2,17 +2,23 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:visit_1000_hills/views/ApartmentListView.dart';
 
-class BookRoomForm extends StatefulWidget {
-  final Map<String, dynamic> room;
+import '../models/Apartment.dart';
 
-  const BookRoomForm({required this.room, super.key});
+
+
+
+class BookApartmentForm extends StatefulWidget {
+  final  Apartment apartment;
+
+  const BookApartmentForm({required this.apartment, Key? key}) : super(key: key);
 
   @override
-  BookNowFormState createState() => BookNowFormState();
+  _BookApartmentFormState createState() => _BookApartmentFormState();
 }
 
-class BookNowFormState extends State<BookRoomForm> {
+class _BookApartmentFormState extends State<BookApartmentForm> {
   final _formKey = GlobalKey<FormState>();
   final String apiUrl = dotenv.env['API_URL'] ?? '';
 
@@ -41,7 +47,7 @@ class BookNowFormState extends State<BookRoomForm> {
   }
 
   double get totalAmount {
-    return (daysStayed > 0 ? daysStayed : 0) * (widget.room['price'] as num).toDouble();
+    return (daysStayed > 0 ? daysStayed : 0) *  100;
   }
 
   Future<void> pickDate({required bool isCheckIn}) async {
@@ -55,7 +61,7 @@ class BookNowFormState extends State<BookRoomForm> {
       setState(() {
         if (isCheckIn) {
           from_date_time = picked;
-          if (to_date_time != null && from_date_time!.isBefore(picked)) {
+          if (to_date_time != null && from_date_time!.isAfter(to_date_time!)) {
             to_date_time = null;
           }
         } else {
@@ -79,7 +85,6 @@ class BookNowFormState extends State<BookRoomForm> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error sending OTP')),
       );
-      print(err);
     } finally {
       setState(() => isSending = false);
     }
@@ -101,9 +106,9 @@ class BookNowFormState extends State<BookRoomForm> {
         'email': email,
         'address': address,
         'phone': phoneNumber,
-        'journey': widget.room,
+        'journey': widget.apartment.name,
         'object_type': 'room',
-        'object_id': widget.room['id'],
+        'object_id': widget.apartment.name,
         'from_date_time': from_date_time!.toIso8601String(),
         'to_date_time': to_date_time!.toIso8601String(),
         'amount_to_pay': totalAmount,
@@ -144,7 +149,6 @@ class BookNowFormState extends State<BookRoomForm> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Verification or booking failed')),
       );
-      print(err);
     } finally {
       setState(() => isVerifying = false);
     }
@@ -152,8 +156,6 @@ class BookNowFormState extends State<BookRoomForm> {
 
   @override
   Widget build(BuildContext context) {
-    final journey = widget.room;
-
     return Scaffold(
       appBar: AppBar(title: Text('Book Room')),
       body: SingleChildScrollView(
@@ -165,7 +167,7 @@ class BookNowFormState extends State<BookRoomForm> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Book Room at ${journey['location'] ?? 'Hotel'}',
+                'Book Room at ${widget.apartment.name}',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 16),
@@ -259,12 +261,7 @@ class BookNowFormState extends State<BookRoomForm> {
                 TextFormField(
                   decoration: InputDecoration(labelText: 'MTN Momo Number'),
                   keyboardType: TextInputType.phone,
-                  validator: (val) {
-                    if (val == null || val.isEmpty) {
-                      return 'Enter Momo Number';
-                    }
-                    return null;
-                  },
+                  validator: (val) => val == null || val.isEmpty ? 'Enter Momo Number' : null,
                   onSaved: (val) => momoNumber = val!,
                 ),
 
@@ -285,9 +282,7 @@ class BookNowFormState extends State<BookRoomForm> {
                     sendOTP();
                   }
                 },
-                child: isSending
-                    ? CircularProgressIndicator()
-                    : Text('Send OTP'),
+                child: isSending ? CircularProgressIndicator() : Text('Send OTP'),
               ),
             ],
           ),
@@ -305,9 +300,7 @@ class BookNowFormState extends State<BookRoomForm> {
             SizedBox(height: 16),
             ElevatedButton(
               onPressed: isVerifying ? null : verifyOTPAndBook,
-              child: isVerifying
-                  ? CircularProgressIndicator()
-                  : Text('Verify & Confirm Booking'),
+              child: isVerifying ? CircularProgressIndicator() : Text('Verify & Confirm Booking'),
             ),
           ],
         )

@@ -23,9 +23,7 @@ class RoomListClientPageState extends State<HotelRoomListView> {
   String capacityFilter = '';
   String statusFilter = '';
 
-
   final String storageUrl = dotenv.env['BASE_URL_STORAGE'] ?? '';
-
   final String apiUrl = '${dotenv.env['API_URL'] ?? ''}/rooms';
 
   @override
@@ -42,7 +40,6 @@ class RoomListClientPageState extends State<HotelRoomListView> {
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
-
         setState(() {
           rooms = jsonData['data'];
           filteredRooms = jsonData['data'];
@@ -50,10 +47,10 @@ class RoomListClientPageState extends State<HotelRoomListView> {
           lastPage = jsonData['last_page'];
         });
       } else {
-        print("Failed to fetch rooms");
+        print("Failed to fetch rooms: ${response.statusCode}");
       }
     } catch (e) {
-      print("Error: $e");
+      print("Error fetching rooms: $e");
     }
 
     setState(() => loading = false);
@@ -72,15 +69,12 @@ class RoomListClientPageState extends State<HotelRoomListView> {
     if (capacityFilter.isNotEmpty) {
       final intCap = int.tryParse(capacityFilter);
       if (intCap != null) {
-        filtered =
-            filtered.where((room) => room['capacity'] == intCap).toList();
+        filtered = filtered.where((room) => room['capacity'] == intCap).toList();
       }
     }
 
     if (statusFilter.isNotEmpty) {
-      filtered = filtered
-          .where((room) => room['status'] == statusFilter)
-          .toList();
+      filtered = filtered.where((room) => room['status'] == statusFilter).toList();
     }
 
     setState(() {
@@ -99,16 +93,14 @@ class RoomListClientPageState extends State<HotelRoomListView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Room List'),
-      ),
+      appBar: AppBar(title: Text('Room List')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: loading
             ? Center(child: CircularProgressIndicator())
             : Column(
           children: [
-            // Filter section
+            // Filter Form
             Card(
               color: Colors.blue[600],
               child: Padding(
@@ -116,21 +108,17 @@ class RoomListClientPageState extends State<HotelRoomListView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Filter Rooms',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text('Filter Rooms',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        )),
                     SizedBox(height: 16),
                     TextField(
                       onChanged: (value) {
-                        setState(() {
-                          searchTerm = value;
-                          applyFilters();
-                        });
+                        searchTerm = value;
+                        applyFilters();
                       },
                       decoration: InputDecoration(
                         labelText: 'Search by Name',
@@ -142,10 +130,8 @@ class RoomListClientPageState extends State<HotelRoomListView> {
                     TextField(
                       keyboardType: TextInputType.number,
                       onChanged: (value) {
-                        setState(() {
-                          capacityFilter = value;
-                          applyFilters();
-                        });
+                        capacityFilter = value;
+                        applyFilters();
                       },
                       decoration: InputDecoration(
                         labelText: 'Filter by Capacity',
@@ -158,14 +144,14 @@ class RoomListClientPageState extends State<HotelRoomListView> {
                       value: statusFilter.isEmpty ? null : statusFilter,
                       items: const [
                         DropdownMenuItem(value: '', child: Text('All')),
-                        DropdownMenuItem(value: 'available', child: Text('Available')),
-                        DropdownMenuItem(value: 'unavailable', child: Text('Unavailable')),
+                        DropdownMenuItem(
+                            value: 'available', child: Text('Available')),
+                        DropdownMenuItem(
+                            value: 'unavailable', child: Text('Unavailable')),
                       ],
                       onChanged: (value) {
-                        setState(() {
-                          statusFilter = value ?? '';
-                          applyFilters();
-                        });
+                        statusFilter = value ?? '';
+                        applyFilters();
                       },
                       decoration: InputDecoration(
                         labelText: 'Status',
@@ -177,10 +163,9 @@ class RoomListClientPageState extends State<HotelRoomListView> {
                 ),
               ),
             ),
-
             SizedBox(height: 20),
 
-            // Room cards
+            // Room Grid
             Expanded(
               child: filteredRooms.isEmpty
                   ? Center(child: Text("No rooms found."))
@@ -188,9 +173,7 @@ class RoomListClientPageState extends State<HotelRoomListView> {
                 gridDelegate:
                 SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount:
-                  MediaQuery.of(context).size.width > 800
-                      ? 3
-                      : 1,
+                  MediaQuery.of(context).size.width > 800 ? 3 : 1,
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   childAspectRatio: 0.8,
@@ -207,30 +190,31 @@ class RoomListClientPageState extends State<HotelRoomListView> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => RoomDetailScreen(roomId: room['id'].toString()),
+                          builder: (_) => RoomDetailScreen(
+                              roomId: room['id'].toString()),
                         ),
                       );
-
-
                     },
                     child: Card(
                       elevation: 4,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       child: Padding(
                         padding: const EdgeInsets.all(12.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min, // This ensures height fits content
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
-                              height: 200, // Increased image height
+                              height: 200,
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 image: DecorationImage(
                                   fit: BoxFit.cover,
                                   image: photoPath != null
                                       ? NetworkImage(photoPath)
-                                      : const AssetImage('assets/placeholder/placeholder.png')
+                                      : const AssetImage(
+                                      'assets/placeholder/placeholder.png')
                                   as ImageProvider,
                                 ),
                                 borderRadius: BorderRadius.circular(10),
@@ -268,12 +252,11 @@ class RoomListClientPageState extends State<HotelRoomListView> {
                       ),
                     ),
                   );
-
                 },
               ),
             ),
 
-            // Pagination controls
+            // Pagination Controls
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
