@@ -2,15 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:visit_1000_hills/views/ApartmentListView.dart';
-
 import '../models/Apartment.dart';
 
-
-
-
 class BookApartmentForm extends StatefulWidget {
-  final  Apartment apartment;
+  final Apartment apartment;
 
   const BookApartmentForm({required this.apartment, Key? key}) : super(key: key);
 
@@ -27,28 +22,18 @@ class _BookApartmentFormState extends State<BookApartmentForm> {
   String address = '';
   String phoneNumber = '';
   String otp = '';
-
+  String selectedCountry = 'Rwanda';
+  String selectedPaymentMethod = '';
+  String momoNumber = '';
   String step = "form";
   bool isSending = false;
   bool isVerifying = false;
 
-  String selectedCountry = 'Rwanda';
-  String selectedPaymentMethod = '';
-  String momoNumber = '';
+  DateTime? fromDate;
+  DateTime? toDate;
 
-  DateTime? from_date_time;
-  DateTime? to_date_time;
-
-  int get daysStayed {
-    if (from_date_time != null && to_date_time != null) {
-      return to_date_time!.difference(from_date_time!).inDays;
-    }
-    return 0;
-  }
-
-  double get totalAmount {
-    return (daysStayed > 0 ? daysStayed : 0) *  100;
-  }
+  int get daysStayed => fromDate != null && toDate != null ? toDate!.difference(fromDate!).inDays : 0;
+  double get totalAmount => (daysStayed > 0 ? daysStayed : 0) * 100;
 
   Future<void> pickDate({required bool isCheckIn}) async {
     final DateTime? picked = await showDatePicker(
@@ -60,12 +45,12 @@ class _BookApartmentFormState extends State<BookApartmentForm> {
     if (picked != null) {
       setState(() {
         if (isCheckIn) {
-          from_date_time = picked;
-          if (to_date_time != null && from_date_time!.isAfter(to_date_time!)) {
-            to_date_time = null;
+          fromDate = picked;
+          if (toDate != null && fromDate!.isAfter(toDate!)) {
+            toDate = null;
           }
         } else {
-          to_date_time = picked;
+          toDate = picked;
         }
       });
     }
@@ -81,10 +66,8 @@ class _BookApartmentFormState extends State<BookApartmentForm> {
       );
       if (res.statusCode != 200) throw Exception("Failed to send OTP");
       setState(() => step = "otp");
-    } catch (err) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sending OTP')),
-      );
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error sending OTP')));
     } finally {
       setState(() => isSending = false);
     }
@@ -107,10 +90,10 @@ class _BookApartmentFormState extends State<BookApartmentForm> {
         'address': address,
         'phone': phoneNumber,
         'journey': widget.apartment.name,
-        'object_type': 'room',
-        'object_id': widget.apartment.name,
-        'from_date_time': from_date_time!.toIso8601String(),
-        'to_date_time': to_date_time!.toIso8601String(),
+        'object_type': 'apartment',
+        'object_id': widget.apartment.id,
+        'from_date_time': fromDate!.toIso8601String(),
+        'to_date_time': toDate!.toIso8601String(),
         'amount_to_pay': totalAmount,
         'payment_method': selectedPaymentMethod,
         'momo_number': momoNumber,
@@ -126,185 +109,183 @@ class _BookApartmentFormState extends State<BookApartmentForm> {
       if (bookingRes.statusCode != 201) throw Exception("Booking failed");
 
       setState(() => step = "success");
-
       showDialog(
         context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text("Booking Successful"),
-            content: Text("Your booking was successful! A payment link has been sent to your email."),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.pop(context);
-                },
-                child: Text("OK"),
-              ),
-            ],
-          );
-        },
+        builder: (context) => AlertDialog(
+          title: Text("Booking Successful"),
+          content: Text("Payment link sent to your email."),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.pop(context);
+              },
+              child: Text("OK"),
+            ),
+          ],
+        ),
       );
-    } catch (err) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Verification or booking failed')),
-      );
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Verification failed')));
     } finally {
       setState(() => isVerifying = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Book Room')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: step == "form"
-            ? Form(
-          key: _formKey,
+  Widget buildTextField(
+      String label,
+      IconData icon, {
+        TextInputType keyboardType = TextInputType.text,
+        required FormFieldSetter<String> onSaved,
+      }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon),
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+        onSaved: onSaved,
+      ),
+    );
+  }
+
+  Widget buildDatePickerTile(String label, DateTime? date, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(Icons.calendar_today),
+      title: Text(date != null ? "$label: ${date.toLocal()}".split(' ')[0] : "Select $label Date"),
+      onTap: onTap,
+    );
+  }
+
+  Widget buildForm() {
+    return Form(
+      key: _formKey,
+      child: Card(
+        elevation: 4,
+        margin: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Book Room at ${widget.apartment.name}',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 16),
+              Text('Book ${widget.apartment.name}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              SizedBox(height: 20),
 
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Full Name'),
-                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                onSaved: (val) => fullName = val!,
-              ),
-
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Email'),
-                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                onSaved: (val) => email = val!,
-              ),
-
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Address'),
-                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                onSaved: (val) => address = val!,
-              ),
-
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Phone Number'),
-                keyboardType: TextInputType.phone,
-                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                onSaved: (val) => phoneNumber = val!,
-              ),
+              buildTextField('Full Name', Icons.person, onSaved: (val) => fullName = val!),
+              buildTextField('Email', Icons.email, keyboardType: TextInputType.emailAddress, onSaved: (val) => email = val!),
+              buildTextField('Address', Icons.location_on, onSaved: (val) => address = val!),
+              buildTextField('Phone Number', Icons.phone, keyboardType: TextInputType.phone, onSaved: (val) => phoneNumber = val!),
 
               DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Country'),
+                decoration: InputDecoration(prefixIcon: Icon(Icons.flag), labelText: 'Country'),
                 value: selectedCountry,
-                items: ['Rwanda', 'Kenya', 'Uganda'].map((country) {
-                  return DropdownMenuItem(
-                    value: country,
-                    child: Text(country),
-                  );
-                }).toList(),
+                items: ['Rwanda', 'Kenya', 'Uganda'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (val) => setState(() => selectedCountry = val!),
               ),
 
-              SizedBox(height: 16),
-              Text("Check-in & Check-out Dates", style: TextStyle(fontWeight: FontWeight.bold)),
+              buildDatePickerTile('Check-in', fromDate, () => pickDate(isCheckIn: true)),
+              buildDatePickerTile('Check-out', toDate, () => pickDate(isCheckIn: false)),
 
-              ListTile(
-                title: Text(from_date_time != null
-                    ? "Check-in: ${from_date_time!.toLocal()}".split(' ')[0]
-                    : "Select Check-in Date"),
-                trailing: Icon(Icons.calendar_today),
-                onTap: () => pickDate(isCheckIn: true),
-              ),
-
-              ListTile(
-                title: Text(to_date_time != null
-                    ? "Check-out: ${to_date_time!.toLocal()}".split(' ')[0]
-                    : "Select Check-out Date"),
-                trailing: Icon(Icons.calendar_today),
-                onTap: () => pickDate(isCheckIn: false),
-              ),
-
-              if (from_date_time != null && to_date_time != null)
+              if (fromDate != null && toDate != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text("Staying $daysStayed day(s), Total: \$${totalAmount.toStringAsFixed(2)}"),
+                  child: Text("Total: $daysStayed nights | \$${totalAmount.toStringAsFixed(2)}",
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
 
-              SizedBox(height: 16),
-
               DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Payment Method'),
-                value: selectedPaymentMethod.isNotEmpty ? selectedPaymentMethod : null,
+                decoration: InputDecoration(prefixIcon: Icon(Icons.payment), labelText: 'Payment Method'),
+                value: selectedPaymentMethod.isEmpty ? null : selectedPaymentMethod,
                 items: [
-                  DropdownMenuItem(
-                    value: 'momo_rwanda',
-                    child: Text('MTN Mobile Money (Rwanda)'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'flutterwave',
-                    child: Text('Flutterwave - Wallet, Card, Bank'),
-                  ),
+                  DropdownMenuItem(value: 'momo_rwanda', child: Text('MTN Momo (Rwanda)')),
+                  DropdownMenuItem(value: 'flutterwave', child: Text('Flutterwave - Wallet/Card/Bank')),
                 ],
-                onChanged: (value) {
-                  setState(() {
-                    selectedPaymentMethod = value!;
-                  });
-                },
-                validator: (val) => val == null ? 'Select a payment method' : null,
+                onChanged: (value) => setState(() => selectedPaymentMethod = value ?? ''),
+                validator: (val) => val == null || val.isEmpty ? 'Select payment method' : null,
               ),
 
               if (selectedPaymentMethod == 'momo_rwanda')
-                TextFormField(
-                  decoration: InputDecoration(labelText: 'MTN Momo Number'),
-                  keyboardType: TextInputType.phone,
-                  validator: (val) => val == null || val.isEmpty ? 'Enter Momo Number' : null,
-                  onSaved: (val) => momoNumber = val!,
-                ),
+                buildTextField('Momo Number', Icons.phone_android,
+                    keyboardType: TextInputType.phone, onSaved: (val) => momoNumber = val!),
 
-              SizedBox(height: 16),
+              SizedBox(height: 20),
 
-              ElevatedButton(
+              ElevatedButton.icon(
+                icon: isSending
+                    ? SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Icon(Icons.send),
+                label: Text('Send OTP'),
                 onPressed: isSending
                     ? null
                     : () {
                   if (_formKey.currentState!.validate()) {
-                    if (from_date_time == null || to_date_time == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please select check-in and check-out dates')),
-                      );
+                    if (fromDate == null || toDate == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Select both dates')));
                       return;
                     }
                     _formKey.currentState!.save();
                     sendOTP();
                   }
                 },
-                child: isSending ? CircularProgressIndicator() : Text('Send OTP'),
               ),
             ],
           ),
-        )
-            : step == "otp"
-            ? Column(
+        ),
+      ),
+    );
+  }
+
+  Widget buildOTPForm() {
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.all(20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
           children: [
-            Text('Enter OTP sent to $email'),
-            SizedBox(height: 16),
-            TextFormField(
+            Text('Enter OTP sent to $email', style: TextStyle(fontSize: 18)),
+            SizedBox(height: 20),
+            TextField(
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: 'OTP'),
+              decoration: InputDecoration(prefixIcon: Icon(Icons.security), labelText: 'OTP'),
               onChanged: (val) => otp = val,
             ),
-            SizedBox(height: 16),
-            ElevatedButton(
+            SizedBox(height: 20),
+            ElevatedButton.icon(
+              icon: isVerifying
+                  ? SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Icon(Icons.check_circle),
+              label: Text('Verify & Confirm'),
               onPressed: isVerifying ? null : verifyOTPAndBook,
-              child: isVerifying ? CircularProgressIndicator() : Text('Verify & Confirm Booking'),
             ),
           ],
-        )
-            : Center(child: Text("Booking completed successfully!")),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Book Apartment')),
+      body: AnimatedSwitcher(
+        duration: Duration(milliseconds: 400),
+        child: SingleChildScrollView(
+          key: ValueKey(step),
+          child: step == "form"
+              ? buildForm()
+              : step == "otp"
+              ? buildOTPForm()
+              : Center(child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Text("Booking completed successfully!", style: TextStyle(fontSize: 18), textAlign: TextAlign.center),
+          )),
+        ),
       ),
     );
   }

@@ -41,7 +41,8 @@ class BookNowFormState extends State<BookRoomForm> {
   }
 
   double get totalAmount {
-    return (daysStayed > 0 ? daysStayed : 0) * (widget.room['price'] as num).toDouble();
+    return (daysStayed > 0 ? daysStayed : 0) *
+        (widget.room['price'] as num).toDouble();
   }
 
   Future<void> pickDate({required bool isCheckIn}) async {
@@ -76,9 +77,9 @@ class BookNowFormState extends State<BookRoomForm> {
       if (res.statusCode != 200) throw Exception("Failed to send OTP");
       setState(() => step = "otp");
     } catch (err) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sending OTP')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error sending OTP')));
       print(err);
     } finally {
       setState(() => isSending = false);
@@ -127,7 +128,9 @@ class BookNowFormState extends State<BookRoomForm> {
         builder: (BuildContext context) {
           return AlertDialog(
             title: Text("Booking Successful"),
-            content: Text("Your booking was successful! A payment link has been sent to your email."),
+            content: Text(
+              "Your booking was successful! A payment link has been sent to your email.",
+            ),
             actions: [
               TextButton(
                 onPressed: () {
@@ -141,9 +144,9 @@ class BookNowFormState extends State<BookRoomForm> {
         },
       );
     } catch (err) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Verification or booking failed')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Verification or booking failed')));
       print(err);
     } finally {
       setState(() => isVerifying = false);
@@ -158,160 +161,272 @@ class BookNowFormState extends State<BookRoomForm> {
       appBar: AppBar(title: Text('Book Room')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: step == "form"
-            ? Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Book Room at ${journey['location'] ?? 'Hotel'}',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 16),
+        child:
+            step == "form"
+                ? Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '🛏️ Book Room at ${journey['location'] ?? 'Hotel'}',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo,
+                        ),
+                      ),
+                      SizedBox(height: 20),
 
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Full Name'),
-                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                onSaved: (val) => fullName = val!,
-              ),
+                      // Full Name
+                      TextFormField(
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(Icons.person),
+                          labelText: 'Full Name',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator:
+                            (val) =>
+                                val == null || val.isEmpty ? 'Required' : null,
+                        onSaved: (val) => fullName = val!,
+                      ),
+                      SizedBox(height: 16),
 
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Email'),
-                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                onSaved: (val) => email = val!,
-              ),
+                      // Email
+                      TextFormField(
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(Icons.email),
+                          labelText: 'Email',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator:
+                            (val) =>
+                                val == null || val.isEmpty ? 'Required' : null,
+                        onSaved: (val) => email = val!,
+                      ),
+                      SizedBox(height: 16),
 
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Address'),
-                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                onSaved: (val) => address = val!,
-              ),
+                      // Address
+                      TextFormField(
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(Icons.location_on),
+                          labelText: 'Address',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator:
+                            (val) =>
+                                val == null || val.isEmpty ? 'Required' : null,
+                        onSaved: (val) => address = val!,
+                      ),
+                      SizedBox(height: 16),
 
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Phone Number'),
-                keyboardType: TextInputType.phone,
-                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                onSaved: (val) => phoneNumber = val!,
-              ),
+                      // Phone
+                      TextFormField(
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(Icons.phone),
+                          labelText: 'Phone Number',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.phone,
+                        validator:
+                            (val) =>
+                                val == null || val.isEmpty ? 'Required' : null,
+                        onSaved: (val) => phoneNumber = val!,
+                      ),
+                      SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Country'),
-                value: selectedCountry,
-                items: ['Rwanda', 'Kenya', 'Uganda'].map((country) {
-                  return DropdownMenuItem(
-                    value: country,
-                    child: Text(country),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => selectedCountry = val!),
-              ),
+                      // Country
+                      DropdownButtonFormField<String>(
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(Icons.flag),
+                          labelText: 'Country',
+                          border: OutlineInputBorder(),
+                        ),
+                        value: selectedCountry,
+                        items:
+                            ['Rwanda', 'Kenya', 'Uganda'].map((country) {
+                              return DropdownMenuItem(
+                                value: country,
+                                child: Text(country),
+                              );
+                            }).toList(),
+                        onChanged:
+                            (val) => setState(() => selectedCountry = val!),
+                      ),
+                      SizedBox(height: 24),
 
-              SizedBox(height: 16),
-              Text("Check-in & Check-out Dates", style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(
+                        "📅 Check-in & Check-out Dates",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.indigo,
+                        ),
+                      ),
+                      SizedBox(height: 8),
 
-              ListTile(
-                title: Text(from_date_time != null
-                    ? "Check-in: ${from_date_time!.toLocal()}".split(' ')[0]
-                    : "Select Check-in Date"),
-                trailing: Icon(Icons.calendar_today),
-                onTap: () => pickDate(isCheckIn: true),
-              ),
+                      // Check-in
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.calendar_today, color: Colors.teal),
+                        title: Text(
+                          from_date_time != null
+                              ? "Check-in: ${from_date_time!.toLocal()}".split(
+                                ' ',
+                              )[0]
+                              : "Select Check-in Date",
+                        ),
+                        onTap: () => pickDate(isCheckIn: true),
+                      ),
 
-              ListTile(
-                title: Text(to_date_time != null
-                    ? "Check-out: ${to_date_time!.toLocal()}".split(' ')[0]
-                    : "Select Check-out Date"),
-                trailing: Icon(Icons.calendar_today),
-                onTap: () => pickDate(isCheckIn: false),
-              ),
+                      // Check-out
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.calendar_today, color: Colors.teal),
+                        title: Text(
+                          to_date_time != null
+                              ? "Check-out: ${to_date_time!.toLocal()}".split(
+                                ' ',
+                              )[0]
+                              : "Select Check-out Date",
+                        ),
+                        onTap: () => pickDate(isCheckIn: false),
+                      ),
 
-              if (from_date_time != null && to_date_time != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text("Staying $daysStayed day(s), Total: \$${totalAmount.toStringAsFixed(2)}"),
-                ),
+                      if (from_date_time != null && to_date_time != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            "🕒 Staying $daysStayed day(s), Total: \$${totalAmount.toStringAsFixed(2)}",
+                            style: TextStyle(
+                              color: Colors.green[700],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
 
-              SizedBox(height: 16),
+                      SizedBox(height: 24),
 
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Payment Method'),
-                value: selectedPaymentMethod.isNotEmpty ? selectedPaymentMethod : null,
-                items: [
-                  DropdownMenuItem(
-                    value: 'momo_rwanda',
-                    child: Text('MTN Mobile Money (Rwanda)'),
+                      // Payment Method
+                      DropdownButtonFormField<String>(
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(Icons.payment),
+                          labelText: 'Payment Method',
+                          border: OutlineInputBorder(),
+                        ),
+                        value:
+                            selectedPaymentMethod.isNotEmpty
+                                ? selectedPaymentMethod
+                                : null,
+                        items: [
+                          DropdownMenuItem(
+                            value: 'momo_rwanda',
+                            child: Text('MTN Mobile Money (Rwanda)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'flutterwave',
+                            child: Text('Flutterwave - Wallet, Card, Bank'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            selectedPaymentMethod = value!;
+                          });
+                        },
+                        validator:
+                            (val) =>
+                                val == null ? 'Select a payment method' : null,
+                      ),
+                      SizedBox(height: 16),
+
+                      if (selectedPaymentMethod == 'momo_rwanda')
+                        TextFormField(
+                          decoration: InputDecoration(
+                            prefixIcon: Icon(Icons.phone_android),
+                            labelText: 'MTN Momo Number',
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.phone,
+                          validator: (val) {
+                            if (val == null || val.isEmpty)
+                              return 'Enter Momo Number';
+                            return null;
+                          },
+                          onSaved: (val) => momoNumber = val!,
+                        ),
+
+                      SizedBox(height: 24),
+
+                      // Submit
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              isSending
+                                  ? null
+                                  : () {
+                                    if (_formKey.currentState!.validate()) {
+                                      if (from_date_time == null ||
+                                          to_date_time == null) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Please select check-in and check-out dates',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      _formKey.currentState!.save();
+                                      sendOTP();
+                                    }
+                                  },
+                          icon:
+                              isSending
+                                  ? CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                  : Icon(Icons.send),
+                          label: Text(isSending ? 'Sending...' : 'Send OTP'),
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor: Colors.indigo,
+                            textStyle: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  DropdownMenuItem(
-                    value: 'flutterwave',
-                    child: Text('Flutterwave - Wallet, Card, Bank'),
-                  ),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    selectedPaymentMethod = value!;
-                  });
-                },
-                validator: (val) => val == null ? 'Select a payment method' : null,
-              ),
-
-              if (selectedPaymentMethod == 'momo_rwanda')
-                TextFormField(
-                  decoration: InputDecoration(labelText: 'MTN Momo Number'),
-                  keyboardType: TextInputType.phone,
-                  validator: (val) {
-                    if (val == null || val.isEmpty) {
-                      return 'Enter Momo Number';
-                    }
-                    return null;
-                  },
-                  onSaved: (val) => momoNumber = val!,
-                ),
-
-              SizedBox(height: 16),
-
-              ElevatedButton(
-                onPressed: isSending
-                    ? null
-                    : () {
-                  if (_formKey.currentState!.validate()) {
-                    if (from_date_time == null || to_date_time == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please select check-in and check-out dates')),
-                      );
-                      return;
-                    }
-                    _formKey.currentState!.save();
-                    sendOTP();
-                  }
-                },
-                child: isSending
-                    ? CircularProgressIndicator()
-                    : Text('Send OTP'),
-              ),
-            ],
-          ),
-        )
-            : step == "otp"
-            ? Column(
-          children: [
-            Text('Enter OTP sent to $email'),
-            SizedBox(height: 16),
-            TextFormField(
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: 'OTP'),
-              onChanged: (val) => otp = val,
-            ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: isVerifying ? null : verifyOTPAndBook,
-              child: isVerifying
-                  ? CircularProgressIndicator()
-                  : Text('Verify & Confirm Booking'),
-            ),
-          ],
-        )
-            : Center(child: Text("Booking completed successfully!")),
+                )
+                : step == "otp"
+                ? Column(
+                  children: [
+                    Text('Enter OTP sent to $email'),
+                    SizedBox(height: 16),
+                    TextFormField(
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(labelText: 'OTP'),
+                      onChanged: (val) => otp = val,
+                    ),
+                    SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: isVerifying ? null : verifyOTPAndBook,
+                      child:
+                          isVerifying
+                              ? CircularProgressIndicator()
+                              : Text('Verify & Confirm Booking'),
+                    ),
+                  ],
+                )
+                : Center(child: Text("Booking completed successfully!")),
       ),
     );
   }

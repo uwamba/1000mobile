@@ -42,6 +42,7 @@ class BusListScreenState extends State<TicketListView> {
       final json = jsonDecode(response.body);
 
       List data = json['data'];
+      print(data);
       List<String> agencyNames =
           data
               .map((j) => j['bus']?['agency']?['name'])
@@ -94,44 +95,107 @@ class BusListScreenState extends State<TicketListView> {
   Widget buildCard(journey) {
     final layout = journey['bus']?['layout'];
     return Card(
-      margin: EdgeInsets.symmetric(vertical: 10),
+      elevation: 4,
+      margin: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '${journey['from']} ➡️ ${journey['to']}',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            Text('Agency: ${journey['bus']?['agency']?['name'] ?? '—'}'),
-            Text(
-              'Bus: ${journey['bus']?['name'] ?? '—'} (${layout?['name'] ?? ''})',
-            ),
-            Text('Departure: ${journey['departure']}'),
-            Text('Return: ${journey['return']}'),
-            Text('Status: ${journey['status'] ?? 'Inactive'}'),
-            SizedBox(height: 10),
-            Text(
-              '${journey['price'] ?? 0} RWF',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            // Route
+            Row(
+              children: [
+                Icon(Icons.location_on, color: Colors.indigo),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${journey['from']} ➡️ ${journey['to']}',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 10),
 
-            ElevatedButton(
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  builder: (_) => BookNowForm(journey: journey),
-                );
-              },
-              child: Text('Book Now'),
+            // Agency
+            Row(
+              children: [
+                Icon(Icons.business, size: 18, color: Colors.grey[700]),
+                SizedBox(width: 8),
+                Text('Agency: ${journey['bus']?['agency']?['name'] ?? '—'}'),
+              ],
+            ),
+            SizedBox(height: 6),
+
+            // Bus and layout
+            Row(
+              children: [
+                Icon(Icons.directions_bus, size: 18, color: Colors.grey[700]),
+                SizedBox(width: 8),
+                Text('Bus: ${journey['bus']?['name'] ?? '—'} (${layout?['name'] ?? ''})'),
+              ],
+            ),
+            SizedBox(height: 6),
+
+            // Departure
+            Row(
+              children: [
+                Icon(Icons.schedule, size: 18, color: Colors.grey[700]),
+                SizedBox(width: 8),
+                Text('Departure: ${journey['departure']}'),
+              ],
+            ),
+            SizedBox(height: 6),
+
+
+            // Status
+
+            SizedBox(height: 12),
+
+            // Price
+            Row(
+              children: [
+                Icon(Icons.monetization_on, color: Colors.amber),
+                SizedBox(width: 8),
+                Text(
+                  '${journey['price'] ?? 0} RWF',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.green[800],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+
+            // Book Now Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (_) => BookNowForm(journey: journey),
+                  );
+                },
+                icon: Icon(Icons.hotel),
+                label: Text('Book Now'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: Colors.indigo,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  textStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
+
   }
 
   @override
@@ -232,40 +296,34 @@ class BusListScreenState extends State<TicketListView> {
   }
 }
 
+
+
 class BookNowForm extends StatefulWidget {
   final Map journey;
-  BookNowForm({required this.journey});
+  const BookNowForm({super.key, required this.journey});
 
   @override
-  _BookNowFormState createState() => _BookNowFormState();
+  State<BookNowForm> createState() => _BookNowFormState();
 }
 
-class _BookNowFormState extends State<BookNowForm> {
+class _BookNowFormState extends State<BookNowForm> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final String apiUrl = dotenv.env['API_URL'] ?? '';
 
-  String fullName = '';
-  String email = '';
-  String address = '';
-  String phoneNumber = '';
-  String selectedSeat = '';
-  String otp = '';
-
+  String fullName = '', email = '', address = '', phoneNumber = '', selectedSeat = '', otp = '', selectedCountry = 'Rwanda', selectedPaymentMethod = '', momoNumber = '';
   String step = "form";
-  bool isSending = false;
-  bool isVerifying = false;
+  bool isSending = false, isVerifying = false;
 
-  String selectedCountry = 'Rwanda';
-  String selectedPaymentMethod = '';
-  String momoNumber = '';
+  late AnimationController _controller;
+  late Animation<double> _fade;
 
-  final int seatRows = 9;
-  final int seatColumns = 5;
-  final List<int> excludedSeats = [
-    1, 2, 3, 4, 5,
-    10, 9, 8,
-    13, 18, 23, 28, 33, 38,
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+    _controller.forward();
+  }
 
   Future<void> sendOTP() async {
     setState(() => isSending = true);
@@ -278,10 +336,7 @@ class _BookNowFormState extends State<BookNowForm> {
       if (res.statusCode != 200) throw Exception("Failed to send OTP");
       setState(() => step = "otp");
     } catch (err) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sending OTP')),
-      );
-      print(err);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error sending OTP')));
     } finally {
       setState(() => isSending = false);
     }
@@ -295,7 +350,6 @@ class _BookNowFormState extends State<BookNowForm> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'otp': otp}),
       );
-
       if (verifyRes.statusCode != 200) throw Exception("Invalid OTP");
 
       final bookingData = {
@@ -319,37 +373,24 @@ class _BookNowFormState extends State<BookNowForm> {
         body: jsonEncode(bookingData),
       );
 
-
-
       if (bookingRes.statusCode != 201) throw Exception("Booking failed");
 
       setState(() => step = "success");
-
       showDialog(
         context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text("Booking Successful"),
-            content: Text("Your booking was successful! A payment link has been sent to your email."),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // Close the dialog
-                  Navigator.pop(context); // Optionally pop the booking page
-                },
-                child: Text("OK"),
-              ),
-            ],
-          );
-        },
+        builder: (_) => AlertDialog(
+          title: Text("Booking Successful"),
+          content: Text("A payment link has been sent to your email."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("OK"),
+            )
+          ],
+        ),
       );
-
-
     } catch (err) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Verification or booking failed')),
-      );
-      print(err);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Verification or booking failed')));
     } finally {
       setState(() => isVerifying = false);
     }
@@ -358,258 +399,161 @@ class _BookNowFormState extends State<BookNowForm> {
   @override
   Widget build(BuildContext context) {
     final journey = widget.journey;
+    final layout = journey['bus']['layout'];
+    final int row = layout['row'];       // or layout['seat_row']
+    final int column = layout['column']; // or layout['seat_column']
+    final List exclude = layout['exclude'];
 
+    print('Journey from ${journey['from']} to ${journey['to']}');
+    print('Layout: $row rows, $column columns');
+    print('Excluded seats: $exclude');
     return Scaffold(
-      appBar: AppBar(title: Text('Book Now')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: step == "form"
-            ? Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              Text(
-                'Book a Seat for ${journey['from']} ➡️ ${journey['to']}',
-                style:
-                TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 16),
+      appBar: AppBar(title: Text('🚌 Book Now')),
+      body: FadeTransition(
+        opacity: _fade,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: step == "form"
+              ? Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Trip: ${journey['from']} ➡️ ${journey['to']}', style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 16),
 
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Full Name'),
-                validator: (val) =>
-                val == null || val.isEmpty ? 'Required' : null,
-                onSaved: (val) => fullName = val!,
-              ),
+                buildInput(Icons.person, 'Full Name', onSaved: (val) => fullName = val!),
+                buildInput(Icons.email, 'Email', onSaved: (val) => email = val!),
+                buildInput(Icons.home, 'Address', onSaved: (val) => address = val!),
+                buildInput(Icons.phone, 'Phone Number', onSaved: (val) => phoneNumber = val!, inputType: TextInputType.phone),
 
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Email'),
-                validator: (val) =>
-                val == null || val.isEmpty ? 'Required' : null,
-                onSaved: (val) => email = val!,
-              ),
-
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Address'),
-                validator: (val) =>
-                val == null || val.isEmpty ? 'Required' : null,
-                onSaved: (val) => address = val!,
-              ),
-
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Phone Number'),
-                keyboardType: TextInputType.phone,
-                validator: (val) =>
-                val == null || val.isEmpty ? 'Required' : null,
-                onSaved: (val) => phoneNumber = val!,
-              ),
-
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Country'),
-                value: selectedCountry,
-                items: [
-                  'Rwanda',
-                  'Kenya',
-                  'Uganda',
-                  'Tanzania',
-                  'Burundi',
-                  'South Sudan',
-                  'Ethiopia',
-                  'Somalia',
-                  'Democratic Republic of Congo',
-                  'Republic of Congo',
-                  'Nigeria',
-                  'Ghana',
-                  'South Africa',
-                  'Zimbabwe',
-                  'Zambia',
-                  'Malawi',
-                  'Botswana',
-                  'Namibia',
-                  'Lesotho',
-                  'Eswatini',
-                  'Mozambique',
-                  'Angola',
-                  'Cameroon',
-                  'Chad',
-                  'Central African Republic',
-                  'Mali',
-                  'Niger',
-                  'Burkina Faso',
-                  'Togo',
-                  'Benin',
-                  'Ivory Coast',
-                  'Sierra Leone',
-                  'Liberia',
-                  'Guinea',
-                  'Gambia',
-                  'Senegal',
-                  'Mauritania',
-                  'Algeria',
-                  'Tunisia',
-                  'Morocco',
-                  'Egypt',
-                  'Sudan',
-                  'Eritrea',
-                  'Libya',
-                  'Cape Verde',
-                  'Seychelles',
-                  'Mauritius',
-                  'Comoros',
-                  'Djibouti'
-                ]
-                    .map((country) => DropdownMenuItem(
-                  value: country,
-                  child: Text(country),
-                ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedCountry = value!;
-                  });
-                },
-                validator: (val) =>
-                val == null ? 'Select a country' : null,
-              ),
-
-              SizedBox(height: 16),
-
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Payment Method'),
-                value: selectedPaymentMethod.isNotEmpty
-                    ? selectedPaymentMethod
-                    : null,
-                items: [
-                  DropdownMenuItem(
-                    value: 'momo_rwanda',
-                    child: Text('MTN Mobile Money (Rwanda)'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'flutterwave',
-                    child: Text('Flutterwave - Wallet,Card, bank'),
-                  ),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    selectedPaymentMethod = value!;
-                  });
-                },
-                validator: (val) =>
-                val == null ? 'Select a payment method' : null,
-              ),
-
-              if (selectedPaymentMethod == 'momo_rwanda')
-                TextFormField(
-                  decoration:
-                  InputDecoration(labelText: 'MTN Momo Number'),
-                  keyboardType: TextInputType.phone,
-                  validator: (val) {
-                    if (selectedPaymentMethod == 'MTN_MOMO' &&
-                        (val == null || val.isEmpty)) {
-                      return 'Enter Momo Number';
-                    }
-                    return null;
-                  },
-                  onSaved: (val) => momoNumber = val!,
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(prefixIcon: Icon(Icons.public), labelText: 'Country'),
+                  value: selectedCountry,
+                  items: ['Rwanda', 'Kenya', 'Uganda', 'Burundi', 'Tanzania']
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (val) => setState(() => selectedCountry = val!),
                 ),
 
-              SizedBox(height: 16),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(prefixIcon: Icon(Icons.payment), labelText: 'Payment Method'),
+                  value: selectedPaymentMethod.isEmpty ? null : selectedPaymentMethod,
+                  items: const [
+                    DropdownMenuItem(value: 'momo_rwanda', child: Text('MTN Mobile Money (Rwanda)')),
+                    DropdownMenuItem(value: 'flutterwave', child: Text('Flutterwave')),
+                  ],
+                  onChanged: (val) => setState(() => selectedPaymentMethod = val!),
+                ),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    selectedSeat.isNotEmpty
-                        ? 'Selected Seat: $selectedSeat'
-                        : 'No seat selected',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final seat = await Navigator.push<int>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SeatSelectionScreen(
-                            seatRows: seatRows,
-                            seatColumns: seatColumns,
-                            excludedSeats: excludedSeats,
-                            objectId: widget.journey['id'],
+                if (selectedPaymentMethod == 'momo_rwanda')
+                  buildInput(Icons.phone_android, 'MTN Momo Number', onSaved: (val) => momoNumber = val!, inputType: TextInputType.phone),
+
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      selectedSeat.isNotEmpty ? '🎫 Seat: $selectedSeat' : 'No seat selected',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.event_seat),
+                      label: const Text('Select Seat'),
+                      onPressed: () async {
+                        final seat = await Navigator.push<int>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SeatSelectionScreen(
+                              seatRows: row,
+                              seatColumns: column,
+                              excludedSeats: exclude,
+                              objectId: widget.journey['id'],
+                            ),
                           ),
-                        ),
-                      );
-                      if (seat != null) {
-                        setState(() {
-                          selectedSeat = seat.toString();
-                        });
-                      }
-                    },
-                    child: Text('Select Seat'),
+                        );
+                        if (seat != null) setState(() => selectedSeat = seat.toString());
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 30),
+                    textStyle: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                ],
-              ),
-
-              SizedBox(height: 16),
-
-              ElevatedButton(
-                onPressed: isSending
-                    ? null
-                    : () {
-                  if (_formKey.currentState!.validate()) {
-                    if (selectedSeat.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Please select a seat'),
-                        ),
-                      );
-                      return;
+                  onPressed: isSending
+                      ? null
+                      : () {
+                    if (_formKey.currentState!.validate()) {
+                      if (selectedSeat.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a seat')));
+                        return;
+                      }
+                      _formKey.currentState!.save();
+                      sendOTP();
                     }
-                    _formKey.currentState!.save();
-                    sendOTP();
-                  }
-                },
-                child: isSending
-                    ? CircularProgressIndicator()
-                    : Text('Send OTP'),
+                  },
+                  child: isSending ? const CircularProgressIndicator(color: Colors.white) : const Text('Send OTP'),
+                ),
+              ],
+            ),
+          )
+              : step == "otp"
+              ? Column(
+            children: [
+              const Text('🔐 Enter OTP sent to your email'),
+              const SizedBox(height: 16),
+              TextField(
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(prefixIcon: Icon(Icons.lock), labelText: 'OTP'),
+                onChanged: (val) => otp = val,
               ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: isVerifying ? null : verifyOTPAndBook,
+                child: isVerifying ? const CircularProgressIndicator(color: Colors.white) : const Text('Verify & Confirm Booking'),
+              )
             ],
-          ),
-        )
-            : step == "otp"
-            ? Column(
-          children: [
-            Text('Enter OTP sent to $email'),
-            SizedBox(height: 16),
-            TextFormField(
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: 'OTP'),
-              onChanged: (val) => otp = val,
-            ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: isVerifying ? null : verifyOTPAndBook,
-              child: isVerifying
-                  ? CircularProgressIndicator()
-                  : Text('Verify & Confirm Booking'),
-            ),
-          ],
-        )
-            : Center(child: Text("Booking completed successfully!")),
+          )
+              : const Center(child: Icon(Icons.check_circle, size: 80, color: Colors.green)),
+        ),
       ),
     );
   }
+
+  Widget buildInput(IconData icon, String label,
+      {FormFieldSetter<String>? onSaved, TextInputType inputType = TextInputType.text}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        decoration: InputDecoration(prefixIcon: Icon(icon), labelText: label),
+        keyboardType: inputType,
+        validator: (val) => (val == null || val.isEmpty) ? 'Required' : null,
+        onSaved: onSaved,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 }
-
-// Replace with your actual API base URL
-
-
-
 
 
 class SeatSelectionScreen extends StatefulWidget {
   final int seatRows;
   final int seatColumns;
   final int objectId;
-  final List<int> excludedSeats;
+  final List excludedSeats;
 
   const SeatSelectionScreen({
     required this.seatRows,
@@ -638,11 +582,9 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       final String apiUrl = dotenv.env['API_URL'] ?? '';
       final uri = Uri.parse('$apiUrl/booked-seats/${widget.objectId}');
       final response = await http.get(uri);
-       print(response.body);
+
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
-        print('booked seats: $jsonData');
-
         List<dynamic> seats = jsonData is List ? jsonData : jsonData['booked_seats'];
         setState(() {
           bookedSeats = seats.map<int>((s) => int.tryParse(s.toString()) ?? 0).toList();
@@ -662,6 +604,58 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     }
   }
 
+  Widget buildSeat(int seatNumber) {
+    bool isExcluded = widget.excludedSeats.contains(seatNumber);
+    bool isBooked = bookedSeats.contains(seatNumber);
+    bool isDisabled = isExcluded || isBooked;
+
+    if (isExcluded) {
+      return const SizedBox(
+        width: 50,
+        height: 50,
+      );
+    }
+
+    return GestureDetector(
+      onTap: isDisabled ? null : () => Navigator.pop(context, seatNumber),
+      child: Container(
+        width: 50,
+        height: 50,
+        margin: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: isBooked ? Colors.grey[400] : Colors.lightBlue[100],
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isDisabled ? Colors.grey : Colors.indigo,
+            width: 1.5,
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(
+              Icons.event_seat,
+              color: isDisabled ? Colors.grey[600] : Colors.indigo,
+              size: 20,
+            ),
+            Positioned(
+              bottom: 4,
+              child: Text(
+                '$seatNumber',
+                style: const TextStyle(fontSize: 10),
+              ),
+            ),
+            if (seatNumber == 1)
+              const Positioned(
+                top: 2,
+                child: Icon(Icons.directions_bus, size: 14, color: Colors.red),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -670,44 +664,93 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       );
     }
 
-    List<Widget> seatButtons = [];
-    for (int row = 0; row < widget.seatRows; row++) {
-      for (int col = 0; col < widget.seatColumns; col++) {
-        int seatNumber = row * widget.seatColumns + col + 1;
-        bool isExcluded = widget.excludedSeats.contains(seatNumber) || bookedSeats.contains(seatNumber);
-
-        seatButtons.add(
-          Padding(
-            padding: const EdgeInsets.all(4),
-            child: ElevatedButton(
-              onPressed: isExcluded
-                  ? null
-                  : () {
-                Navigator.pop(context, seatNumber);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isExcluded ? Colors.grey : Colors.blue,
-                minimumSize: const Size(40, 40),
-              ),
-              child: Text('$seatNumber'),
+    return Scaffold(
+      appBar: AppBar(title: const Text('🚌 Select a Seat')),
+      backgroundColor: Colors.grey[100],
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.black26, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 10,
+                  offset: Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    '🚌 Front',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+                Column(
+                  children: List.generate(widget.seatRows, (row) {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(widget.seatColumns, (col) {
+                        int seatNumber = row * widget.seatColumns + col + 1;
+                        return buildSeat(seatNumber);
+                      }),
+                    );
+                  }),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(top: 16),
+                  child: Text(
+                    'Back 🚪',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildLegend('Available', Colors.lightBlue[100]!),
+                    _buildLegend('Booked', Colors.grey[400]!),
+                    _buildLegend('Empty', Colors.transparent, hasBorder: true),
+                    _buildLegend('Driver', Colors.red),
+                  ],
+                ),
+              ],
             ),
           ),
-        );
-      }
-    }
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Select a Seat')),
-      body: Center(
-        child: Wrap(
-          alignment: WrapAlignment.center,
-          children: seatButtons,
         ),
       ),
     );
   }
-}
 
+  Widget _buildLegend(String label, Color color, {bool hasBorder = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: color,
+              border: hasBorder ? Border.all(color: Colors.black) : null,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+}
 
 
 

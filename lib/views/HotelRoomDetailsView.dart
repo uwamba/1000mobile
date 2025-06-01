@@ -51,9 +51,35 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     }
   }
 
-  Widget buildInfoItem(String label, dynamic value) {
-    return Text('$label: ${value ?? 'N/A'}', style: TextStyle(fontSize: 14));
+  Widget buildIconInfo(IconData icon, String label, dynamic value, double width) {
+    return SizedBox(
+      width: width,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Colors.blueAccent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.black87,
+                    )),
+                const SizedBox(height: 2),
+                Text(value?.toString() ?? 'N/A',
+                    style: const TextStyle(fontSize: 13, color: Colors.black54)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -74,27 +100,29 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(room!['name'] ?? 'Room Details')),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Main Image
+            /// Main Image
             AspectRatio(
               aspectRatio: 16 / 9,
               child: photos.isNotEmpty
                   ? CachedNetworkImage(
                 imageUrl: '$storageUrl/${photos[selectedImageIndex]['path']}',
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Center(child: CircularProgressIndicator()),
-                errorWidget: (context, url, error) => Icon(Icons.error),
+                placeholder: (context, url) =>
+                const Center(child: CircularProgressIndicator()),
+                errorWidget: (context, url, error) => const Icon(Icons.error),
               )
                   : Image.asset(
                 'assets/placeholder/placeholder.png',
                 fit: BoxFit.cover,
               ),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
 
-            // Thumbnails
+            /// Thumbnails
             if (photos.length > 1)
               SizedBox(
                 height: 80,
@@ -105,7 +133,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                     return GestureDetector(
                       onTap: () => setState(() => selectedImageIndex = index),
                       child: Container(
-                        margin: EdgeInsets.symmetric(horizontal: 5),
+                        margin: const EdgeInsets.symmetric(horizontal: 5),
                         decoration: BoxDecoration(
                           border: Border.all(
                             color: index == selectedImageIndex ? Colors.blue : Colors.grey,
@@ -122,59 +150,92 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                   },
                 ),
               ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-            // Room Info
-            Card(
-              elevation: 4,
+            /// Room Info Card
+            /// Room Info Card - Two Column Layout
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    buildInfoItem('Type', room!['type']),
-                    buildInfoItem('Bed Size', room!['bed_size']),
-                    buildInfoItem('Price', '${room!['price']} ${room!['currency']}'),
-                    buildInfoItem('Capacity', '${room!['number_of_people']} people'),
-                    buildInfoItem('WiFi', room!['has_wireless'] ? 'Yes' : 'No'),
-                    buildInfoItem('Bathroom', room!['has_bathroom'] ? 'Yes' : 'No'),
-                    buildInfoItem('Air Conditioning', room!['has_ac'] ? 'Yes' : 'No'),
-                    buildInfoItem('Status', room!['status']),
-                    if (room!['hotel'] != null) buildInfoItem('Hotel', room!['hotel']['name']),
-                  ],
+                padding: const EdgeInsets.all(16),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columnWidth = constraints.maxWidth / 2 - 16;
+
+                    return Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: [
+                        buildIconInfo(Icons.hotel, 'Type', room!['type'], columnWidth),
+                        buildIconInfo(Icons.bed, 'Bed Size', room!['bed_size'], columnWidth),
+                        buildIconInfo(Icons.price_change, 'Price', '${room!['price']} ${room!['currency']}', columnWidth),
+                        buildIconInfo(Icons.people, 'Capacity', '${room!['number_of_people']} people', columnWidth),
+                        buildIconInfo(Icons.wifi, 'WiFi', room!['has_wireless'] ? 'Yes' : 'No', columnWidth),
+                        buildIconInfo(Icons.bathtub, 'Bathroom', room!['has_bathroom'] ? 'Yes' : 'No', columnWidth),
+                        buildIconInfo(Icons.ac_unit, 'Air Conditioning', room!['has_ac'] ? 'Yes' : 'No', columnWidth),
+                        buildIconInfo(Icons.verified, 'Status', room!['status'], columnWidth),
+                        if (room!['hotel'] != null)
+                          buildIconInfo(Icons.location_city, 'Hotel', room!['hotel']['name'], columnWidth),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
-            SizedBox(height: 16),
 
-            // Book Button
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BookRoomForm(room: room!), // <-- room! ensures it's not null
-                  ),
-                );
-              },
-              child: Text('Book This Room'),
+            const SizedBox(height: 16),
+
+            /// Book Button
+            Center(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BookRoomForm(room: room!),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.book_online),
+                label: const Text('Book This Room'),
+                style: ElevatedButton.styleFrom(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  backgroundColor: Colors.blueAccent,
+                ),
+              ),
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
 
-            // Similar Rooms Section
+            /// Similar Rooms Section
             if (similarRooms.isNotEmpty)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Similar Rooms', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 10),
+                  const Text('Similar Rooms',
+                      style:
+                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
                   ...similarRooms.map((similarRoom) {
-                    final imgUrl = similarRoom['photos'] != null && similarRoom['photos'].isNotEmpty
+                    final imgUrl = similarRoom['photos'] != null &&
+                        similarRoom['photos'].isNotEmpty
                         ? '$storageUrl/${similarRoom['photos'][0]['path']}'
                         : null;
 
                     return Card(
-                      margin: EdgeInsets.symmetric(vertical: 8),
+                      margin: const EdgeInsets.symmetric(vertical: 8),
                       child: ListTile(
                         leading: imgUrl != null
                             ? CachedNetworkImage(
@@ -182,8 +243,10 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                           width: 60,
                           height: 60,
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => CircularProgressIndicator(),
-                          errorWidget: (context, url, error) => Icon(Icons.error),
+                          placeholder: (context, url) =>
+                          const CircularProgressIndicator(),
+                          errorWidget: (context, url, error) =>
+                          const Icon(Icons.error),
                         )
                             : Image.asset(
                           'assets/placeholder/placeholder.png',
@@ -192,8 +255,9 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                           fit: BoxFit.cover,
                         ),
                         title: Text(similarRoom['name']),
-                        subtitle: Text('Price: ${similarRoom['price']} ${similarRoom['currency']}'),
-                        trailing: Icon(Icons.arrow_forward),
+                        subtitle: Text(
+                            'Price: ${similarRoom['price']} ${similarRoom['currency']}'),
+                        trailing: const Icon(Icons.arrow_forward),
                         onTap: () {
                           Navigator.push(
                             context,
