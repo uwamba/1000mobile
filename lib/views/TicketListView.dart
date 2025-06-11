@@ -33,7 +33,7 @@ class BusListScreenState extends State<TicketListView> {
     setState(() => loading = true);
     try {
       final url = Uri.parse(
-        '${dotenv.env['API_URL'] ?? ''}/journeys?page=$pageNum&limit=$limit',
+        '${dotenv.env['API_URL'] ?? ''}/client/journeys?page=$pageNum&limit=$limit',
       );
       final response = await http.get(url);
 

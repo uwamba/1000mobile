@@ -10,6 +10,7 @@ import 'package:visit_1000_hills/views/TicketListView.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+import 'EventListPage.dart';
 import 'HotelRoomDetailsView.dart';
 
 class HomeView extends StatefulWidget {
@@ -21,7 +22,6 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   late PageController _pageController;
-  int _currentPage = 0;
   Timer? _timer;
   bool loading = true;
   int page = 1;
@@ -33,7 +33,7 @@ class _HomeViewState extends State<HomeView> {
   List<dynamic> rooms = [];
   List<dynamic> filteredRooms = [];
   final String storageUrl = dotenv.env['BASE_URL_STORAGE'] ?? '';
-  final String apiUrl = '${dotenv.env['API_URL'] ?? ''}/rooms';
+  final String apiUrl = '${dotenv.env['API_URL'] ?? ''}/client/rooms';
 
   static Widget bannerItem(String text, Color color) => Container(
     margin: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -164,6 +164,34 @@ class _HomeViewState extends State<HomeView> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => HotelRoomListView(),
+                          ),
+                        );
+                      }, theme),
+
+
+                    ],
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Container(
+                  color: Colors.white, // ✅ White background
+                  child: const SizedBox(height: 30),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: Container(
+                  color: Colors.white, // ✅ Set background color
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      choiceCard(Icons.event, 'Event & Meeting', () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EventListPage(),
                           ),
                         );
                       }, theme),
@@ -438,6 +466,19 @@ class _HomeViewState extends State<HomeView> {
                     // You can add apartment navigation here
                   },
                 ),
+                serviceTile(
+                  title: 'Events And Meeting',
+                  description: 'Explore and rent affordable Event Space.',
+                  icon: Icons.event,
+                  theme: theme,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => EventListPage()),
+                    );
+                    // You can add apartment navigation here
+                  },
+                ),
               ],
             ),
           ),
@@ -493,7 +534,7 @@ class _HomeViewState extends State<HomeView> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 110,
+        width: 180,
         height: 160,
         decoration: BoxDecoration(
           color: theme.primaryColor.withOpacity(0.1),

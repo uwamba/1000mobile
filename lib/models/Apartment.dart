@@ -21,6 +21,8 @@ class Apartment {
   final List<Photo> photos;
   final String? createdAt;
   final String? updatedAt;
+  final DateTime? availableFrom;   // <-- new field
+  final DateTime? availableTo;
 
   Apartment({
     required this.id,
@@ -45,6 +47,8 @@ class Apartment {
     required this.photos,
     required this.createdAt,
     required this.updatedAt,
+    this.availableFrom,
+    this.availableTo,// <-- add to constructor
   });
 
   factory Apartment.fromJson(Map<String, dynamic> json) {
@@ -73,9 +77,16 @@ class Apartment {
           .toList(),
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
+      availableFrom: json['available_from'] != null
+          ? DateTime.tryParse(json['available_from'])
+          : null,  // <-- parse here safely
+      availableTo: json['available_to'] != null
+          ? DateTime.tryParse(json['available_to'])
+          : null,  // <-- parse here safely
     );
   }
 }
+
 
 
 class Photo {

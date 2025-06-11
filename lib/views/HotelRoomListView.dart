@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
 import 'HotelRoomDetailsView.dart';
 
 class HotelRoomListView extends StatefulWidget {
@@ -19,12 +18,13 @@ class RoomListClientPageState extends State<HotelRoomListView> {
   int page = 1;
   int lastPage = 1;
 
-  String searchTerm = '';
-  String capacityFilter = '';
-  String statusFilter = '';
+  String minPrice = '';
+  String maxPrice = '';
+  DateTime? checkinDate;
+  DateTime? checkoutDate;
 
   final String storageUrl = dotenv.env['BASE_URL_STORAGE'] ?? '';
-  final String apiUrl = '${dotenv.env['API_URL'] ?? ''}/rooms';
+  final String apiUrl = '${dotenv.env['API_URL'] ?? ''}/client/rooms';
 
   @override
   void initState() {
@@ -36,12 +36,21 @@ class RoomListClientPageState extends State<HotelRoomListView> {
     setState(() => loading = true);
 
     try {
-      final response = await http.get(Uri.parse('$apiUrl?page=$page'));
+      final uri = Uri.parse(apiUrl).replace(queryParameters: {
+        'page': page.toString(),
+        if (checkinDate != null) 'from_date': checkinDate!.toIso8601String().substring(0, 10),
+        if (checkoutDate != null) 'to_date': checkoutDate!.toIso8601String().substring(0, 10),
+        if (minPrice.isNotEmpty) 'min_price': minPrice,
+        if (maxPrice.isNotEmpty) 'max_price': maxPrice,
+      });
+
+      final response = await http.get(uri);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         setState(() {
           rooms = jsonData['data'];
+          print(rooms);
           filteredRooms = jsonData['data'];
           this.page = jsonData['current_page'];
           lastPage = jsonData['last_page'];
@@ -59,23 +68,7 @@ class RoomListClientPageState extends State<HotelRoomListView> {
   void applyFilters() {
     List<dynamic> filtered = rooms;
 
-    if (searchTerm.isNotEmpty) {
-      filtered = filtered
-          .where((room) =>
-          room['name'].toLowerCase().contains(searchTerm.toLowerCase()))
-          .toList();
-    }
 
-    if (capacityFilter.isNotEmpty) {
-      final intCap = int.tryParse(capacityFilter);
-      if (intCap != null) {
-        filtered = filtered.where((room) => room['capacity'] == intCap).toList();
-      }
-    }
-
-    if (statusFilter.isNotEmpty) {
-      filtered = filtered.where((room) => room['status'] == statusFilter).toList();
-    }
 
     setState(() {
       filteredRooms = filtered;
@@ -93,11 +86,11 @@ class RoomListClientPageState extends State<HotelRoomListView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Room List')),
+      appBar: AppBar(title: const Text('Room List')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: loading
-            ? Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator())
             : Column(
           children: [
             // Filter Form
@@ -108,72 +101,95 @@ class RoomListClientPageState extends State<HotelRoomListView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Filter Rooms',
+                    const Text('Filter Rooms',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         )),
-                    SizedBox(height: 16),
-                    TextField(
-                      onChanged: (value) {
-                        searchTerm = value;
-                        applyFilters();
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Search by Name',
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
+                    const SizedBox(height: 16),
+
+                    Text("Check-in & Check-out", style: const TextStyle(color: Colors.white)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null) {
+                                setState(() => checkinDate = picked);
+                              }
+                            },
+                            child: Text(checkinDate == null
+                                ? "Check-in"
+                                : checkinDate!.toIso8601String().substring(0, 10)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: checkinDate?.add(const Duration(days: 1)) ?? DateTime.now(),
+                                firstDate: checkinDate ?? DateTime.now(),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null) {
+                                setState(() => checkoutDate = picked);
+                              }
+                            },
+                            child: Text(checkoutDate == null
+                                ? "Check-out"
+                                : checkoutDate!.toIso8601String().substring(0, 10)),
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 10),
+                    const SizedBox(height: 10),
                     TextField(
                       keyboardType: TextInputType.number,
-                      onChanged: (value) {
-                        capacityFilter = value;
-                        applyFilters();
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Filter by Capacity',
+                      onChanged: (value) => minPrice = value,
+                      decoration: const InputDecoration(
+                        labelText: 'Min Price',
                         filled: true,
                         fillColor: Colors.white,
                       ),
                     ),
-                    SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      value: statusFilter.isEmpty ? null : statusFilter,
-                      items: const [
-                        DropdownMenuItem(value: '', child: Text('All')),
-                        DropdownMenuItem(
-                            value: 'available', child: Text('Available')),
-                        DropdownMenuItem(
-                            value: 'unavailable', child: Text('Unavailable')),
-                      ],
-                      onChanged: (value) {
-                        statusFilter = value ?? '';
-                        applyFilters();
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Status',
+                    const SizedBox(height: 10),
+                    TextField(
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) => maxPrice = value,
+                      decoration: const InputDecoration(
+                        labelText: 'Max Price',
                         filled: true,
                         fillColor: Colors.white,
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: () => fetchRooms(1),
+                      child: const Text("Apply Filters"),
+                    )
                   ],
                 ),
               ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
 
             // Room Grid
             Expanded(
               child: filteredRooms.isEmpty
-                  ? Center(child: Text("No rooms found."))
+                  ? const Center(child: Text("No rooms found."))
                   : GridView.builder(
-                gridDelegate:
-                SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount:
-                  MediaQuery.of(context).size.width > 800 ? 3 : 1,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: MediaQuery.of(context).size.width > 800 ? 3 : 1,
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   childAspectRatio: 0.8,
@@ -190,15 +206,13 @@ class RoomListClientPageState extends State<HotelRoomListView> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => RoomDetailScreen(
-                              roomId: room['id'].toString()),
+                          builder: (_) => RoomDetailScreen(roomId: room['id'].toString()),
                         ),
                       );
                     },
                     child: Card(
                       elevation: 4,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       child: Padding(
                         padding: const EdgeInsets.all(12.0),
                         child: Column(
@@ -213,8 +227,7 @@ class RoomListClientPageState extends State<HotelRoomListView> {
                                   fit: BoxFit.cover,
                                   image: photoPath != null
                                       ? NetworkImage(photoPath)
-                                      : const AssetImage(
-                                      'assets/placeholder/placeholder.png')
+                                      : const AssetImage('assets/placeholder/placeholder.png')
                                   as ImageProvider,
                                 ),
                                 borderRadius: BorderRadius.circular(10),
@@ -237,9 +250,7 @@ class RoomListClientPageState extends State<HotelRoomListView> {
                             Text(
                               'Status: ${room['status'] ?? 'N/A'}',
                               style: TextStyle(
-                                color: room['status'] == 'available'
-                                    ? Colors.green
-                                    : Colors.red,
+                                color: room['status'] == 'available' ? Colors.green : Colors.red,
                               ),
                             ),
                             if (room['deleted_on'] != null)
@@ -262,7 +273,7 @@ class RoomListClientPageState extends State<HotelRoomListView> {
               children: [
                 ElevatedButton(
                   onPressed: page == 1 ? null : handlePrev,
-                  child: Text("Previous"),
+                  child: const Text("Previous"),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -270,7 +281,7 @@ class RoomListClientPageState extends State<HotelRoomListView> {
                 ),
                 ElevatedButton(
                   onPressed: page == lastPage ? null : handleNext,
-                  child: Text("Next"),
+                  child: const Text("Next"),
                 ),
               ],
             ),

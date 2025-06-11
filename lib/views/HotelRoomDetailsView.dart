@@ -30,7 +30,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
 
   Future<void> fetchRoomDetails() async {
     try {
-      final url = Uri.parse('${dotenv.env['API_URL'] ?? ''}/rooms/${widget.roomId}');
+      final url = Uri.parse('${dotenv.env['API_URL'] ?? ''}/client/rooms/${widget.roomId}');
       final res = await http.get(url);
 
       if (res.statusCode == 200) {

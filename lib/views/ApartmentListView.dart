@@ -21,11 +21,13 @@ class _ApartmentListingPageState extends State<ApartmentListingPage> {
   int page = 1;
   int lastPage = 1;
 
-  String searchTerm = '';
-  String bedroomFilter = '';
-  String poolFilter = '';
+  String priceType = 'night'; // 'night' or 'month'
+  String minPrice = '';
+  String maxPrice = '';
+  DateTime? fromDate;
+  DateTime? toDate;
 
-  final String apiUrl = '${dotenv.env['API_URL'] ?? ''}/apartments';
+  final String apiUrl = '${dotenv.env['API_URL'] ?? ''}/client/apartments';
   final String storageUrl = dotenv.env['BASE_URL_STORAGE'] ?? '';
 
   @override
@@ -37,10 +39,19 @@ class _ApartmentListingPageState extends State<ApartmentListingPage> {
   Future<void> fetchApartments(int page) async {
     setState(() => isLoading = true);
     try {
-      final response = await http.get(Uri.parse('$apiUrl?page=$page'));
+      final queryParams = {
+        'page': '$page',
+        if (fromDate != null)
+          'from_date': fromDate!.toIso8601String().split('T')[0],
+        if (toDate != null)
+          'to_date': toDate!.toIso8601String().split('T')[0],
+      };
+
+      final uri = Uri.parse(apiUrl).replace(queryParameters: queryParams);
+      final response = await http.get(uri);
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        final jsonResponse = json.decode(response.body);
         final List<dynamic> dataList = jsonResponse['data'] ?? [];
 
         final List<Apartment> fetchedApartments =
@@ -52,6 +63,8 @@ class _ApartmentListingPageState extends State<ApartmentListingPage> {
           this.page = jsonResponse['current_page'] ?? 1;
           lastPage = jsonResponse['last_page'] ?? 1;
         });
+
+        applyFilters();
       } else {
         throw Exception('Failed to load apartments: ${response.statusCode}');
       }
@@ -65,30 +78,64 @@ class _ApartmentListingPageState extends State<ApartmentListingPage> {
   void applyFilters() {
     List<Apartment> filtered = apartments;
 
-    if (searchTerm.isNotEmpty) {
-      filtered = filtered
-          .where((apt) =>
-          apt.name.toLowerCase().contains(searchTerm.toLowerCase()))
-          .toList();
-    }
+    double? minP = double.tryParse(minPrice);
+    double? maxP = double.tryParse(maxPrice);
 
-    if (bedroomFilter.isNotEmpty) {
-      final intBed = int.tryParse(bedroomFilter);
-      if (intBed != null) {
-        filtered =
-            filtered.where((apt) => apt.numberOfBedroom == intBed).toList();
+    if (priceType == 'night') {
+      if (minP != null) {
+        filtered = filtered
+            .where((apt) =>
+        apt.pricePerNight != null && apt.pricePerNight! >= minP)
+            .toList();
       }
-    }
-
-    if (poolFilter.isNotEmpty) {
-      final poolBool = poolFilter == 'Yes';
-      filtered =
-          filtered.where((apt) => apt.swimmingPool == poolBool).toList();
+      if (maxP != null) {
+        filtered = filtered
+            .where((apt) =>
+        apt.pricePerNight != null && apt.pricePerNight! <= maxP)
+            .toList();
+      }
+    } else if (priceType == 'month') {
+      if (minP != null) {
+        filtered = filtered
+            .where((apt) =>
+        apt.pricePerMonth != null && apt.pricePerMonth! >= minP)
+            .toList();
+      }
+      if (maxP != null) {
+        filtered = filtered
+            .where((apt) =>
+        apt.pricePerMonth != null && apt.pricePerMonth! <= maxP)
+            .toList();
+      }
     }
 
     setState(() {
       filteredApartments = filtered;
     });
+  }
+
+  Future<void> pickFromDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: fromDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() => fromDate = picked);
+    }
+  }
+
+  Future<void> pickToDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: toDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() => toDate = picked);
+    }
   }
 
   void handlePrev() {
@@ -213,9 +260,6 @@ class _ApartmentListingPageState extends State<ApartmentListingPage> {
                       Text("📍 Address: ${apartment.address}"),
                       Text("🛏 Bedrooms: ${apartment.numberOfBedroom}"),
                       Text("🏢 Floors: ${apartment.numberOfFloor}"),
-                      Text("🏊‍♀️ Swimming Pool: "),
-                      Text("📞 Contact:"),
-                      Text("📧 Email: "),
                       const SizedBox(height: 16),
                       Text("💵 Price per Night: \$${apartment.pricePerNight?.toStringAsFixed(2) ?? 'N/A'}"),
                       Text("💰 Price per Month: \$${apartment.pricePerMonth?.toStringAsFixed(2) ?? 'N/A'}"),
@@ -227,14 +271,15 @@ class _ApartmentListingPageState extends State<ApartmentListingPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => BookApartmentForm(apartment: apartment),
+                                builder: (context) =>
+                                    BookApartmentForm(apartment: apartment),
                               ),
                             );
-
                           },
                           label: const Text('Book Apartment'),
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
                             backgroundColor: Colors.indigo,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -265,73 +310,150 @@ class _ApartmentListingPageState extends State<ApartmentListingPage> {
           children: [
             Card(
               color: Colors.indigo[600],
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Filter Apartments',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      onChanged: (value) {
-                        searchTerm = value;
-                        applyFilters();
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Search by Name',
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      keyboardType: TextInputType.number,
-                      onChanged: (value) {
-                        bedroomFilter = value;
-                        applyFilters();
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Filter by Bedrooms',
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      value: poolFilter.isEmpty ? null : poolFilter,
-                      items: const [
-                        DropdownMenuItem(value: '', child: Text('All')),
-                        DropdownMenuItem(value: 'Yes', child: Text('Has Pool')),
-                        DropdownMenuItem(value: 'No', child: Text('No Pool')),
-                      ],
-                      onChanged: (value) {
-                        poolFilter = value ?? '';
-                        applyFilters();
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Swimming Pool',
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                    ),
-                  ],
+              child: ExpansionTile(
+                title: const Text(
+                  'Filter Apartments',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
+                iconColor: Colors.white,
+                collapsedIconColor: Colors.white,
+                childrenPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: priceType,
+                    items: const [
+                      DropdownMenuItem(value: 'night', child: Text('Price per Night')),
+                      DropdownMenuItem(value: 'month', child: Text('Price per Month')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => priceType = value);
+                        applyFilters();
+                      }
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Price Type',
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Min Price',
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          onChanged: (value) {
+                            minPrice = value;
+                            applyFilters();
+                          },
+                          controller: TextEditingController(text: minPrice)
+                            ..selection = TextSelection.collapsed(offset: minPrice.length),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Max Price',
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          onChanged: (value) {
+                            maxPrice = value;
+                            applyFilters();
+                          },
+                          controller: TextEditingController(text: maxPrice)
+                            ..selection = TextSelection.collapsed(offset: maxPrice.length),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  GestureDetector(
+                    onTap: pickFromDate,
+                    child: AbsorbPointer(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          labelText: 'From Date',
+                          filled: true,
+                          fillColor: Colors.white,
+                          hintText: fromDate != null
+                              ? "${fromDate!.toLocal()}".split(' ')[0]
+                              : 'Select From Date',
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: pickToDate,
+                    child: AbsorbPointer(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          labelText: 'To Date',
+                          filled: true,
+                          fillColor: Colors.white,
+                          hintText: toDate != null
+                              ? "${toDate!.toLocal()}".split(' ')[0]
+                              : 'Select To Date',
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          fetchApartments(1);
+                        },
+                        icon: const Icon(Icons.search),
+                        label: const Text("Search"),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+                      ),
+                      TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            minPrice = '';
+                            maxPrice = '';
+                            fromDate = null;
+                            toDate = null;
+                          });
+                          fetchApartments(1);
+                        },
+                        icon: const Icon(Icons.clear),
+                        label: const Text("Clear"),
+                      ),
+                    ],
+                  ),
+
+                ],
               ),
             ),
+
             const SizedBox(height: 20),
             Expanded(
               child: filteredApartments.isEmpty
                   ? const Center(child: Text("No apartments found."))
                   : GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: MediaQuery.of(context).size.width > 800 ? 3 : 1,
+                gridDelegate:
+                SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount:
+                  MediaQuery.of(context).size.width > 800 ? 3 : 1,
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   childAspectRatio: 0.8,
@@ -381,9 +503,6 @@ class _ApartmentListingPageState extends State<ApartmentListingPage> {
                             Text("📍 Address: ${apartment.address}"),
                             Text("🛏 Bedrooms: ${apartment.numberOfBedroom}"),
                             Text("🏢 Floors: ${apartment.numberOfFloor}"),
-                            Text("🏊‍♀️ Swimming Pool: "),
-                            Text("📞 Contact:"),
-                            Text("📧 Email: "),
                             const SizedBox(height: 16),
                             Text("💵 Price per Night: \$${apartment.pricePerNight?.toStringAsFixed(2) ?? 'N/A'}"),
                             Text("💰 Price per Month: \$${apartment.pricePerMonth?.toStringAsFixed(2) ?? 'N/A'}"),
