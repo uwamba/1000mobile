@@ -16,8 +16,8 @@ class Apartment {
   final String? description;
   final String? status;
   final bool? swimmingPool;
-  final double? pricePerNight;
-  final double? pricePerMonth;
+  final double pricePerNight;
+  final double pricePerMonth;
   final List<Photo> photos;
   final String? createdAt;
   final String? updatedAt;
@@ -42,8 +42,8 @@ class Apartment {
     this.description,
     required this.status,
     required this.swimmingPool,
-    this.pricePerNight,
-    this.pricePerMonth,
+    required this.pricePerNight,
+    required this.pricePerMonth,
     required this.photos,
     required this.createdAt,
     required this.updatedAt,
@@ -70,8 +70,9 @@ class Apartment {
       description: json['description'],
       status: json['status'],
       swimmingPool: json['swimming_pool'],
-      pricePerNight: double.tryParse(json['price_per_night'].toString()),
-      pricePerMonth: double.tryParse(json['price_per_month'].toString()),
+      pricePerNight: double.tryParse(json['price_per_night'].toString()) ?? 0.0,
+      pricePerMonth: double.tryParse(json['price_per_month'].toString()) ?? 0.0,
+
       photos: (json['photos'] as List<dynamic>)
           .map((p) => Photo.fromJson(p as Map<String, dynamic>))
           .toList(),
